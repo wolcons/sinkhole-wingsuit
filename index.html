@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sinkhole v0.4</title>
+<style>
+body{margin:0;overflow:hidden;background:#87ceeb;font-family:Arial}
+#hud{position:fixed;left:10px;top:10px;color:white;background:rgba(0,0,0,.45);padding:10px;border-radius:10px;z-index:10}
+button{font-size:18px}
+</style>
+</head>
+<body>
+<div id="hud">
+<b>SINKHOLE v0.4</b><br>
+<div>Prototype: Fall Into The Hole</div>
+<div id="alt">Altitude: 1200m</div>
+<button id="tilt">Enable Tilt</button>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js';
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x87ceeb);
+scene.fog=new THREE.Fog(0x87ceeb,2000,12000);
+
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,30000);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff,1.3));
+const sun=new THREE.DirectionalLight(0xffffff,2);
+sun.position.set(1000,2000,1000);
+scene.add(sun);
+
+// Plateau
+const plateau=new THREE.Mesh(
+ new THREE.CylinderGeometry(6000,6000,150,80),
+ new THREE.MeshLambertMaterial({color:0x2f7d32})
+);
+plateau.position.y=-100;
+scene.add(plateau);
+
+// Giant sinkhole walls
+const sinkhole=new THREE.Mesh(
+ new THREE.CylinderGeometry(1800,2600,2200,64,1,true),
+ new THREE.MeshLambertMaterial({color:0x6e675c,side:THREE.DoubleSide})
+);
+sinkhole.position.set(0,-1200,-3200);
+scene.add(sinkhole);
+
+// Dark abyss floor
+const abyss=new THREE.Mesh(
+ new THREE.CircleGeometry(1800,64),
+ new THREE.MeshLambertMaterial({color:0x111111})
+);
+abyss.rotation.x=-Math.PI/2;
+abyss.position.set(0,-2300,-3200);
+scene.add(abyss);
+
+// Aircraft
+const plane=new THREE.Mesh(
+ new THREE.BoxGeometry(120,30,30),
+ new THREE.MeshLambertMaterial({color:0x777777})
+);
+plane.position.set(0,1100,800);
+scene.add(plane);
+
+// Player wingsuit
+const player=new THREE.Group();
+const torso=new THREE.Mesh(
+ new THREE.BoxGeometry(18,6,32),
+ new THREE.MeshLambertMaterial({color:0xff6600})
+);
+const wings=new THREE.Mesh(
+ new THREE.BoxGeometry(60,2,14),
+ new THREE.MeshLambertMaterial({color:0xbb3300})
+);
+player.add(torso);
+player.add(wings);
+player.position.set(0,1050,650);
+scene.add(player);
+
+let started=false;
+let vy=-4;
+let yaw=0;
+let roll=0;
+let gamma=0;
+
+document.getElementById("tilt").onclick=async()=>{
+ try{
+   if(DeviceOrientationEvent.requestPermission){
+      await DeviceOrientationEvent.requestPermission();
+   }
+ }catch(e){}
+ started=true;
+ plane.visible=false;
+};
+
+window.addEventListener("deviceorientation",e=>{
+ gamma=e.gamma||0;
+});
+
+addEventListener("click",()=>{
+ started=true;
+ plane.visible=false;
+});
+
+function animate(){
+ requestAnimationFrame(animate);
+
+ if(started){
+
+   roll += (gamma/45)*0.004;
+   roll*=0.95;
+
+   yaw += -roll*0.03;
+
+   // gravity dominates
+   vy -= 0.015;
+   if(vy<-16) vy=-16;
+
+   player.position.y += vy;
+
+   // limited glide
+   const glide=10;
+   player.position.x += Math.sin(yaw)*glide;
+   player.position.z -= Math.cos(yaw)*glide;
+
+   player.rotation.z=roll*3;
+
+ } else {
+   // aircraft flyby
+   plane.position.z -= 2;
+   player.position.z -= 2;
+ }
+
+ const camDist=120;
+ camera.position.lerp(
+  new THREE.Vector3(
+    player.position.x - Math.sin(yaw)*camDist,
+    player.position.y + 45,
+    player.position.z + Math.cos(yaw)*camDist
+  ),0.08);
+
+ camera.lookAt(
+   player.position.x,
+   player.position.y,
+   player.position.z - 500
+ );
+
+ document.getElementById("alt").innerText =
+   "Altitude: "+Math.max(0,Math.round(player.position.y+1200))+"m";
+
+ renderer.render(scene,camera);
+}
+animate();
+
+addEventListener('resize',()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
