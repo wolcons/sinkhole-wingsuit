@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Sinkhole Wingsuit</title>
+<style>
+body { margin:0; overflow:hidden; background:#000; color:white; font-family:sans-serif; }
+#ui { position:absolute; top:10px; left:10px; z-index:10; }
+button { font-size:18px; padding:10px; }
+canvas { display:block; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <button id="enable">Enable Tilt Controls</button>
+  <div>Tilt phone to steer into the sinkhole.</div>
+</div>
+
+<script>
+const canvas=document.createElement('canvas');
+document.body.appendChild(canvas);
+const ctx=canvas.getContext('2d');
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
+resize(); addEventListener('resize',resize);
+
+let gamma=0,beta=0;
+document.getElementById('enable').onclick=async ()=>{
+  if(typeof DeviceOrientationEvent!=="undefined" &&
+     typeof DeviceOrientationEvent.requestPermission==="function"){
+      try{ await DeviceOrientationEvent.requestPermission(); }catch(e){}
+  }
+  window.addEventListener('deviceorientation',e=>{
+      gamma=e.gamma||0;
+      beta=e.beta||0;
+  });
+};
+
+let x=0,y=0,z=0;
+let depth=0;
+let parachute=false;
+
+function draw(){
+  requestAnimationFrame(draw);
+
+  x += gamma*0.02;
+  y += beta*0.01;
+
+  depth += parachute ? 1 : 4;
+
+  if(depth>850) parachute=true;
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const cx=canvas.width/2 + x*5;
+  const cy=canvas.height/2 + y*2;
+
+  const sinkRadius=Math.max(20,600-depth*0.6);
+
+  ctx.fillStyle="#3a2";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.beginPath();
+  ctx.arc(cx,cy,sinkRadius,0,Math.PI*2);
+  ctx.fillStyle="#111";
+  ctx.fill();
+
+  ctx.fillStyle="white";
+  ctx.beginPath();
+  ctx.arc(canvas.width/2, canvas.height*0.75, 10, 0, Math.PI*2);
+  ctx.fill();
+
+  if(parachute){
+    ctx.strokeStyle="orange";
+    ctx.lineWidth=4;
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, canvas.height*0.72, 25, Math.PI, 2*Math.PI);
+    ctx.stroke();
+    ctx.fillText("PARACHUTE DEPLOYED",20,90);
+  }
+
+  ctx.fillText("Depth: "+Math.floor(depth)+"m",20,30);
+  ctx.fillText("Tilt: "+Math.floor(gamma),20,55);
+}
+draw();
+</script>
+</body>
+</html>
