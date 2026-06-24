@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Sinkhole Prototype 0.1a</title>
+<style>
+body{margin:0;overflow:hidden;background:#000;font-family:Arial}
+#hud{position:fixed;top:10px;left:10px;color:white;background:rgba(0,0,0,.5);padding:10px;border-radius:8px}
+</style>
+</head>
+<body>
+<div id='hud'>
+<div><b>SINKHOLE Prototype 0.1a</b></div>
+<div id='speed'>Speed:180</div>
+<div id='alt'>Altitude:5000</div>
+<div>W/S dive-flare, A/D turn</div>
+</div>
+
+<script type='module'>
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js';
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x87ceeb);
+
+const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,10000);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff,1.2));
+const sun=new THREE.DirectionalLight(0xffffff,2);
+sun.position.set(100,200,100);
+scene.add(sun);
+
+const basin=new THREE.Mesh(
+ new THREE.CylinderGeometry(800,1200,1200,64,1,true),
+ new THREE.MeshStandardMaterial({color:0x777777,side:THREE.DoubleSide})
+);
+basin.position.y=-600;
+scene.add(basin);
+
+const hidden=new THREE.Mesh(
+ new THREE.CylinderGeometry(300,500,700,48,1,true),
+ new THREE.MeshStandardMaterial({color:0x666666,side:THREE.DoubleSide})
+);
+hidden.position.set(500,-1350,-300);
+scene.add(hidden);
+
+const landing=new THREE.Mesh(
+ new THREE.CylinderGeometry(80,80,5,32),
+ new THREE.MeshStandardMaterial({color:0x00ff00})
+);
+landing.position.set(500,-1700,-300);
+scene.add(landing);
+
+const player=new THREE.Mesh(
+ new THREE.ConeGeometry(10,40,8),
+ new THREE.MeshStandardMaterial({color:0xff5500})
+);
+player.rotation.x=Math.PI/2;
+player.position.set(0,150,-1200);
+scene.add(player);
+
+let speed=180, roll=0, pitch=0;
+const keys={};
+
+addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+
+function loop(){
+ requestAnimationFrame(loop);
+
+ if(keys['a']) roll+=0.01;
+ if(keys['d']) roll-=0.01;
+ if(keys['w']) {pitch-=0.01; speed+=0.5;}
+ if(keys['s']) {pitch+=0.01; speed-=0.5;}
+
+ speed=Math.max(80,Math.min(300,speed));
+
+ player.rotation.z=roll;
+ player.rotation.y+=(-roll*0.05);
+
+ player.position.x+=Math.sin(player.rotation.y)*speed*0.1;
+ player.position.z+=Math.cos(player.rotation.y)*speed*0.1;
+ player.position.y-=(speed/180)*(1-pitch)*0.8;
+
+ camera.position.lerp(new THREE.Vector3(
+  player.position.x,
+  player.position.y+40,
+  player.position.z+120
+ ),0.05);
+
+ camera.lookAt(player.position);
+
+ document.getElementById('speed').textContent='Speed: '+Math.round(speed);
+ document.getElementById('alt').textContent='Altitude: '+Math.max(0,Math.round(5000+player.position.y));
+
+ renderer.render(scene,camera);
+}
+loop();
+
+addEventListener('resize',()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
