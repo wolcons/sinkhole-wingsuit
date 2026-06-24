@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Sinkhole v0.2</title>
+<style>
+html,body{margin:0;overflow:hidden;background:#87CEEB;font-family:Arial}
+#hud{position:fixed;left:10px;top:10px;color:#fff;background:rgba(0,0,0,.45);padding:10px;border-radius:10px;z-index:10}
+button{font-size:18px;padding:8px 12px}
+</style>
+</head>
+<body>
+<div id="hud">
+<b>SINKHOLE v0.2</b><br>
+<div id="status">Tap Enable Tilt on iPhone</div>
+<div id="spd">Speed: 140</div>
+<div id="alt">Altitude: 5000</div>
+<button id="tiltBtn">Enable Tilt</button>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.Fog(0x87CEEB,800,5000);
+
+const camera = new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,10000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff,1.3));
+const sun = new THREE.DirectionalLight(0xffffff,2);
+sun.position.set(1000,2000,500);
+scene.add(sun);
+
+// terrain
+const terrain = new THREE.Mesh(
+ new THREE.PlaneGeometry(8000,8000,100,100),
+ new THREE.MeshLambertMaterial({color:0x2f7d32})
+);
+terrain.rotation.x = -Math.PI/2;
+terrain.position.y = -500;
+scene.add(terrain);
+
+// sinkhole
+const sinkhole = new THREE.Mesh(
+ new THREE.CylinderGeometry(700,1200,1200,64,1,true),
+ new THREE.MeshLambertMaterial({color:0x6b6b6b,side:THREE.DoubleSide})
+);
+sinkhole.position.set(0,-1100,-3000);
+scene.add(sinkhole);
+
+// hidden basin
+const hidden = new THREE.Mesh(
+ new THREE.CylinderGeometry(350,550,700,48,1,true),
+ new THREE.MeshLambertMaterial({color:0x5c5c5c,side:THREE.DoubleSide})
+);
+hidden.position.set(700,-1800,-3600);
+scene.add(hidden);
+
+// landing zone
+const landing = new THREE.Mesh(
+ new THREE.CircleGeometry(80,32),
+ new THREE.MeshBasicMaterial({color:0x00ff00})
+);
+landing.rotation.x=-Math.PI/2;
+landing.position.set(700,-2150,-3600);
+scene.add(landing);
+
+// clouds
+for(let i=0;i<40;i++){
+ const c=new THREE.Mesh(
+  new THREE.SphereGeometry(80+Math.random()*80,8,8),
+  new THREE.MeshLambertMaterial({color:0xffffff})
+ );
+ c.position.set((Math.random()-0.5)*5000,600+Math.random()*600,-Math.random()*6000);
+ scene.add(c);
+}
+
+// player
+const body = new THREE.Group();
+const torso = new THREE.Mesh(
+ new THREE.BoxGeometry(10,4,28),
+ new THREE.MeshLambertMaterial({color:0xff6600})
+);
+const wings = new THREE.Mesh(
+ new THREE.BoxGeometry(40,1,12),
+ new THREE.MeshLambertMaterial({color:0xcc4400})
+);
+body.add(torso); body.add(wings);
+body.position.set(0,800,1000);
+scene.add(body);
+
+let speed=140;
+let roll=0;
+let pitch=0;
+let yaw=0;
+
+let gamma=0,beta=0;
+
+document.getElementById("tiltBtn").onclick=async()=>{
+ if(typeof DeviceOrientationEvent!=="undefined" &&
+ DeviceOrientationEvent.requestPermission){
+   const p=await DeviceOrientationEvent.requestPermission();
+   if(p==="granted"){
+      document.getElementById("status").innerText="Tilt Enabled";
+   }
+ }
+};
+
+window.addEventListener("deviceorientation",(e)=>{
+ gamma=e.gamma||0;
+ beta=e.beta||0;
+});
+
+const keys={};
+onkeydown=e=>keys[e.key.toLowerCase()]=true;
+onkeyup=e=>keys[e.key.toLowerCase()]=false;
+
+function animate(){
+ requestAnimationFrame(animate);
+
+ // desktop
+ if(keys["a"]) roll+=0.01;
+ if(keys["d"]) roll-=0.01;
+ if(keys["w"]) pitch-=0.01;
+ if(keys["s"]) pitch+=0.01;
+
+ // iphone tilt
+ roll += (gamma/45)*0.002;
+ pitch += ((beta-45)/45)*0.001;
+
+ roll*=0.98;
+ pitch*=0.98;
+
+ speed += (-pitch*0.4);
+ speed=Math.max(80,Math.min(260,speed));
+
+ yaw += -roll*0.03;
+
+ body.rotation.z = roll*4;
+ body.rotation.x = pitch*2;
+
+ body.position.x += Math.sin(yaw)*speed*0.7;
+ body.position.z -= Math.cos(yaw)*speed*0.7;
+
+ const descend = 1.8 + (speed/180)*2.2 - pitch*5;
+ body.position.y -= descend;
+
+ const camDist = 140 + speed*0.4;
+ camera.position.lerp(
+   new THREE.Vector3(
+      body.position.x - Math.sin(yaw)*camDist,
+      body.position.y + 60,
+      body.position.z + Math.cos(yaw)*camDist
+   ),0.05);
+
+ camera.lookAt(body.position);
+
+ document.getElementById("spd").innerText="Speed: "+Math.round(speed);
+ document.getElementById("alt").innerText="Altitude: "+Math.max(0,Math.round(body.position.y+4200));
+
+ renderer.render(scene,camera);
+}
+animate();
+
+addEventListener('resize',()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
