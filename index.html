@@ -137,18 +137,18 @@ function animate(){
    player.position.z -= 2;
  }
 
- const camDist=120;
+ const camDist=180;
  camera.position.lerp(
   new THREE.Vector3(
     player.position.x - Math.sin(yaw)*camDist,
-    player.position.y + 45,
+    player.position.y + 120,
     player.position.z + Math.cos(yaw)*camDist
   ),0.08);
 
  camera.lookAt(
    player.position.x,
-   player.position.y,
-   player.position.z - 500
+   player.position.y - 800,
+   player.position.z - 1200
  );
 
  document.getElementById("alt").innerText =
